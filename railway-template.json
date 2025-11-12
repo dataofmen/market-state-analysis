@@ -1,0 +1,51 @@
+{
+  "name": "Market State Analysis System",
+  "description": "미국 주식 시장 분석 시스템 - Piotroski F-Score + 다중 타임프레임 분석",
+  "repository": "https://github.com/dataofmen/market-state-analysis",
+  "services": {
+    "backend": {
+      "source": {
+        "repo": "dataofmen/market-state-analysis",
+        "branch": "main"
+      },
+      "build": {
+        "builder": "NIXPACKS",
+        "buildCommand": "cd backend && pip install -r requirements.txt"
+      },
+      "deploy": {
+        "startCommand": "cd backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT",
+        "healthcheckPath": "/health",
+        "healthcheckTimeout": 300,
+        "restartPolicyType": "ON_FAILURE"
+      },
+      "env": {
+        "PYTHON_VERSION": "3.11",
+        "FMP_API_KEY": {
+          "description": "Financial Modeling Prep API Key",
+          "required": true
+        },
+        "SECRET_KEY": {
+          "description": "Secret key for JWT authentication (min 32 characters)",
+          "required": true,
+          "generator": "secret"
+        },
+        "DATABASE_URL": {
+          "description": "PostgreSQL connection string",
+          "required": true
+        },
+        "REDIS_URL": {
+          "description": "Redis connection string",
+          "required": true
+        }
+      }
+    },
+    "postgres": {
+      "type": "postgresql",
+      "plan": "starter"
+    },
+    "redis": {
+      "type": "redis",
+      "plan": "starter"
+    }
+  }
+}

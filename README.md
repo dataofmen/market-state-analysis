@@ -2,6 +2,16 @@
 
 미국 주식 시장의 상태를 5가지 기술적 지표로 분석하여 최적의 투자 전략을 제시하는 웹 애플리케이션
 
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/market-state-analysis?referralCode=YOUR_CODE)
+
+## 🚀 Quick Deploy
+
+Railway에서 원클릭으로 배포하세요:
+1. 위의 "Deploy on Railway" 버튼 클릭
+2. GitHub 계정으로 로그인
+3. 환경 변수 설정 (FMP_API_KEY, SECRET_KEY)
+4. 자동 배포 시작!
+
 ## 📋 개요
 
 시장의 추세, 변동성, 위험도를 실시간으로 분석하고 현재 시장 상태에 맞는 맞춤형 투자 전략을 제공합니다.
