@@ -6,6 +6,8 @@ from app.models.market_state import MarketState
 from app.models.trade import Trade
 from app.models.analysis_history import AnalysisHistory
 from app.models.data_update_log import DataUpdateLog
+from app.models.fundamental_score import FundamentalScore
+from app.models.trading_signal import TradingSignal
 
 __all__ = [
     "User",
@@ -16,4 +18,6 @@ __all__ = [
     "Trade",
     "AnalysisHistory",
     "DataUpdateLog",
+    "FundamentalScore",
+    "TradingSignal",
 ]

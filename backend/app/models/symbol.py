@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base_class import Base
 
@@ -14,3 +15,11 @@ class Symbol(Base):
     is_active = Column(Integer, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    fundamental_scores = relationship(
+        "FundamentalScore", back_populates="symbol", cascade="all, delete-orphan"
+    )
+    trading_signals = relationship(
+        "TradingSignal", back_populates="symbol", cascade="all, delete-orphan"
+    )
