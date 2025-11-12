@@ -39,6 +39,9 @@ class TradingSignal(Base):
     risk_level = Column(String(20), nullable=True)  # low, medium, high
     risk_factors = Column(JSON, nullable=True)  # 리스크 요인 리스트
 
+    # 다중 타임프레임 분석
+    timeframe_analysis = Column(JSON, nullable=True)  # 타임프레임 정렬 상태, 거래 적합성, 진입점 분석
+
     # 시그널 활성화 여부
     is_active = Column(Boolean, default=True, nullable=False)
 

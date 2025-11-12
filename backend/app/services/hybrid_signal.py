@@ -61,6 +61,7 @@ class HybridSignalGenerator:
         f_score_data: Dict[str, Any],
         technical_data: pd.DataFrame,
         current_price: float,
+        timeframe_analysis: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         종합 매매 시그널 생성
@@ -69,6 +70,7 @@ class HybridSignalGenerator:
             f_score_data: Piotroski F-Score 데이터
             technical_data: 기술적 지표 데이터프레임
             current_price: 현재 가격
+            timeframe_analysis: 다중 타임프레임 분석 결과 (선택)
 
         Returns:
             시그널 정보 딕셔너리
@@ -79,19 +81,23 @@ class HybridSignalGenerator:
         # === 시그널 조건 체크 ===
         conditions = self._check_conditions(f_score, latest_row, technical_data)
 
+        # === 타임프레임 분석 통합 ===
+        if timeframe_analysis:
+            conditions = self._integrate_timeframe_analysis(conditions, timeframe_analysis)
+
         # === 시그널 타입 결정 ===
-        signal_type = self._determine_signal_type(conditions, f_score)
+        signal_type = self._determine_signal_type(conditions, f_score, timeframe_analysis)
 
         # === 시그널 강도 계산 ===
-        signal_strength = self._calculate_signal_strength(conditions)
+        signal_strength = self._calculate_signal_strength(conditions, timeframe_analysis)
 
         # === 추천 액션 생성 ===
         recommendations = self._generate_recommendations(
-            signal_type, conditions, f_score, current_price, latest_row
+            signal_type, conditions, f_score, current_price, latest_row, timeframe_analysis
         )
 
         # === 리스크 평가 ===
-        risk_assessment = self._assess_risk(conditions, f_score, latest_row)
+        risk_assessment = self._assess_risk(conditions, f_score, latest_row, timeframe_analysis)
 
         result = {
             "signal_type": signal_type,
@@ -187,78 +193,152 @@ class HybridSignalGenerator:
 
         return conditions
 
+    def _integrate_timeframe_analysis(
+        self, conditions: Dict[str, bool], timeframe_analysis: Dict[str, Any]
+    ) -> Dict[str, bool]:
+        """
+        타임프레임 분석 결과를 조건에 통합
+
+        타임프레임 정렬 상태에 따라 조건 가중치 조정
+        """
+        if not timeframe_analysis:
+            return conditions
+
+        alignment_status = timeframe_analysis.get("alignment_status")
+        suitability = timeframe_analysis.get("trade_suitability", {})
+
+        # 타임프레임 정렬 상태 조건 추가
+        conditions["timeframe_aligned"] = alignment_status == "aligned"
+        conditions["timeframe_partial_aligned"] = alignment_status == "partial_aligned"
+        conditions["timeframe_conflicted"] = alignment_status == "conflicted"
+
+        # 거래 적합성
+        conditions["trade_suitable"] = suitability.get("should_trade", False)
+
+        # 신뢰도
+        conditions["high_confidence"] = suitability.get("confidence", 0) >= 70
+
+        return conditions
+
     def _determine_signal_type(
-        self, conditions: Dict[str, bool], f_score: int
+        self, conditions: Dict[str, bool], f_score: int, timeframe_analysis: Optional[Dict[str, Any]] = None
     ) -> SignalType:
-        """시그널 타입 결정"""
+        """시그널 타입 결정 (타임프레임 분석 반영)"""
 
-        # === STRONG BUY 조건 ===
-        # F-Score 8-9 + Golden Cross + 강한 추세 + RSI 과매도~중립 + 볼륨 증가
-        if (
-            conditions["f_score_excellent"]
-            and conditions["golden_cross"]
-            and conditions["strong_trend"]
-            and conditions["rsi_oversold"]
-            and conditions["volume_surge"]
-        ):
-            return SignalType.STRONG_BUY
-
-        # === BUY 조건 ===
-        # F-Score 7+ 또는 (Golden Cross + 정배열)
-        if conditions["f_score_good"] or (
-            conditions["golden_cross"] and conditions["bullish_alignment"]
-        ):
-            return SignalType.BUY
-
-        # === WARNING 조건 ===
-        # F-Score 하락 또는 RSI 과매수 지속 또는 ADX 하락
-        if (
-            conditions["f_score_poor"]
-            or conditions["rsi_overbought"]
-            or conditions["weak_trend"]
-        ):
+        # 타임프레임 충돌 시 거래 회피
+        if timeframe_analysis and conditions.get("timeframe_conflicted", False):
             return SignalType.WARNING
 
-        # === SELL 조건 ===
-        # F-Score < 7 + Death Cross
-        if conditions["f_score_poor"] and conditions["death_cross"]:
-            return SignalType.SELL
+        # 타임프레임 완전 정렬 + 강력한 기본 조건
+        if conditions.get("timeframe_aligned", False):
+            # STRONG BUY 조건 강화
+            if (
+                conditions["f_score_excellent"]
+                and conditions["golden_cross"]
+                and conditions["strong_trend"]
+                and conditions["rsi_oversold"]
+            ):
+                return SignalType.STRONG_BUY
 
-        # === STRONG SELL 조건 ===
-        # F-Score < 5 + Death Cross + RSI 과매수 + 볼륨 증가 (공포 매도)
-        if (
-            f_score < 5
-            and conditions["death_cross"]
-            and conditions["rsi_overbought"]
-            and conditions["volume_surge"]
-        ):
-            return SignalType.STRONG_SELL
+            # BUY 조건
+            if conditions["f_score_good"] or (
+                conditions["golden_cross"] and conditions["bullish_alignment"]
+            ):
+                return SignalType.BUY
 
-        # 기본값: HOLD
+            # STRONG SELL 조건
+            if (
+                f_score < 5
+                and conditions["death_cross"]
+                and conditions["rsi_overbought"]
+            ):
+                return SignalType.STRONG_SELL
+
+            # SELL 조건
+            if conditions["f_score_poor"] and conditions["death_cross"]:
+                return SignalType.SELL
+
+        # 부분 정렬 - 보수적 접근
+        elif conditions.get("timeframe_partial_aligned", False):
+            if conditions["f_score_good"] and conditions["golden_cross"]:
+                return SignalType.BUY
+
+            if conditions["f_score_poor"] or conditions["rsi_overbought"]:
+                return SignalType.WARNING
+
+        # 원래 로직 (타임프레임 분석 없을 때)
+        else:
+            if (
+                conditions["f_score_excellent"]
+                and conditions["golden_cross"]
+                and conditions["strong_trend"]
+                and conditions["rsi_oversold"]
+                and conditions["volume_surge"]
+            ):
+                return SignalType.STRONG_BUY
+
+            if conditions["f_score_good"] or (
+                conditions["golden_cross"] and conditions["bullish_alignment"]
+            ):
+                return SignalType.BUY
+
+            if (
+                conditions["f_score_poor"]
+                or conditions["rsi_overbought"]
+                or conditions["weak_trend"]
+            ):
+                return SignalType.WARNING
+
+            if conditions["f_score_poor"] and conditions["death_cross"]:
+                return SignalType.SELL
+
+            if (
+                f_score < 5
+                and conditions["death_cross"]
+                and conditions["rsi_overbought"]
+                and conditions["volume_surge"]
+            ):
+                return SignalType.STRONG_SELL
+
         return SignalType.HOLD
 
-    def _calculate_signal_strength(self, conditions: Dict[str, bool]) -> SignalStrength:
-        """시그널 강도 계산"""
+    def _calculate_signal_strength(
+        self, conditions: Dict[str, bool], timeframe_analysis: Optional[Dict[str, Any]] = None
+    ) -> SignalStrength:
+        """시그널 강도 계산 (타임프레임 분석 반영)"""
 
-        # 긍정적 조건 카운트
-        positive_conditions = [
-            "f_score_excellent",
-            "f_score_good",
-            "golden_cross",
-            "strong_trend",
-            "rsi_oversold",
-            "bullish_alignment",
-            "volume_surge",
-            "above_ma200",
-        ]
+        positive_conditions = sum(
+            1
+            for key, value in conditions.items()
+            if value
+            and key
+            in [
+                "f_score_excellent",
+                "f_score_good",
+                "golden_cross",
+                "strong_trend",
+                "rsi_oversold",
+                "volume_surge",
+                "bullish_alignment",
+                "timeframe_aligned",
+                "trade_suitable",
+                "high_confidence",
+            ]
+        )
 
-        count = sum(1 for cond in positive_conditions if conditions.get(cond, False))
+        # 타임프레임 정렬 시 가중치 증가
+        if timeframe_analysis:
+            alignment_status = timeframe_analysis.get("alignment_status")
+            if alignment_status == "aligned":
+                positive_conditions += 2  # 보너스 점수
+            elif alignment_status == "partial_aligned":
+                positive_conditions += 1
 
-        if count >= 5:
+        if positive_conditions >= 7:
             return SignalStrength.VERY_STRONG
-        elif count >= 4:
+        elif positive_conditions >= 5:
             return SignalStrength.STRONG
-        elif count >= 3:
+        elif positive_conditions >= 3:
             return SignalStrength.MODERATE
         else:
             return SignalStrength.WEAK
@@ -270,91 +350,101 @@ class HybridSignalGenerator:
         f_score: int,
         current_price: float,
         latest_row: pd.Series,
+        timeframe_analysis: Optional[Dict[str, Any]] = None,
     ) -> List[str]:
-        """추천 액션 생성"""
+        """추천 액션 생성 (타임프레임 분석 반영)"""
+
         recommendations = []
 
+        # 타임프레임 분석 기반 추천
+        if timeframe_analysis:
+            suitability = timeframe_analysis.get("trade_suitability", {})
+            recommendations.extend(suitability.get("recommendations", []))
+            warnings = suitability.get("warnings", [])
+            if warnings:
+                recommendations.extend(warnings)
+
+            # 진입점 최적화 추천
+            entry_analysis = timeframe_analysis.get("entry_analysis")
+            if entry_analysis and entry_analysis.get("entry_recommended"):
+                recommendations.extend(entry_analysis.get("entry_strategy", []))
+
+        # 기존 추천 로직 (타임프레임 없을 때)
         if signal_type == SignalType.STRONG_BUY:
-            recommendations.append(f"💎 강력 매수 추천 (F-Score: {f_score}/9)")
-            recommendations.append("진입 시기: 즉시 진입 가능")
-            recommendations.append("포지션 크기: 100% (전액 투자)")
-
-            # 목표가 계산 (현재가 기준 +15%)
-            target_price = current_price * 1.15
-            recommendations.append(f"목표가: ${target_price:.2f} (+15%)")
-
-            # 손절가 계산 (현재가 기준 -7%)
-            stop_loss = current_price * 0.93
-            recommendations.append(f"손절가: ${stop_loss:.2f} (-7%)")
+            if not timeframe_analysis:
+                recommendations.append("💪 강력 매수 추천")
+            recommendations.append(f"진입가: ${current_price:.2f}")
+            recommendations.append("포지션: 100% 투자")
 
         elif signal_type == SignalType.BUY:
-            recommendations.append(f"✅ 매수 추천 (F-Score: {f_score}/9)")
-            recommendations.append("진입 시기: 조정 시 분할 매수")
-            recommendations.append("포지션 크기: 70-80%")
-
-            target_price = current_price * 1.10
-            recommendations.append(f"목표가: ${target_price:.2f} (+10%)")
-
-            stop_loss = current_price * 0.95
-            recommendations.append(f"손절가: ${stop_loss:.2f} (-5%)")
-
-        elif signal_type == SignalType.HOLD:
-            recommendations.append("⏸️ 보유 유지")
-            recommendations.append("관망: 추가 시그널 대기")
-
-            if conditions["rsi_overbought"]:
-                recommendations.append("⚠️ RSI 과매수 구간 - 익절 고려")
+            if not timeframe_analysis:
+                recommendations.append("✅ 매수 추천")
+            recommendations.append(f"진입가: ${current_price:.2f}")
+            recommendations.append("포지션: 70% 투자")
 
         elif signal_type == SignalType.WARNING:
-            recommendations.append(f"⚠️ 주의 (F-Score: {f_score}/9)")
+            if not timeframe_analysis:
+                recommendations.append(f"⚠️ 주의 (F-Score: {f_score}/9)")
             recommendations.append("포지션 축소: 50%로 감소")
-            recommendations.append("손절 준비: 손절가 상향 조정")
-
-            if conditions["death_cross"]:
-                recommendations.append("🔴 Death Cross 발생 - 청산 고려")
 
         elif signal_type == SignalType.SELL:
-            recommendations.append(f"📉 매도 추천 (F-Score: {f_score}/9)")
+            if not timeframe_analysis:
+                recommendations.append("📉 매도 권장")
             recommendations.append("포지션 정리: 전량 매도")
-            recommendations.append("재진입: F-Score 개선 및 Golden Cross 발생 시")
 
         elif signal_type == SignalType.STRONG_SELL:
-            recommendations.append(f"🚨 긴급 매도 (F-Score: {f_score}/9)")
-            recommendations.append("즉시 청산: 지체 없이 전량 매도")
-            recommendations.append("공매도 고려 가능 (고급 투자자)")
+            if not timeframe_analysis:
+                recommendations.append("🚨 즉시 매도")
+            recommendations.append("포지션 정리: 즉시 전량 매도")
 
         return recommendations
 
     def _assess_risk(
-        self, conditions: Dict[str, bool], f_score: int, latest_row: pd.Series
+        self,
+        conditions: Dict[str, bool],
+        f_score: int,
+        latest_row: pd.Series,
+        timeframe_analysis: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """리스크 평가"""
+        """리스크 평가 (타임프레임 분석 반영)"""
 
-        risk_level = "low"
         risk_factors = []
+        risk_level = "low"
+
+        # 타임프레임 리스크
+        if timeframe_analysis:
+            if conditions.get("timeframe_conflicted", False):
+                risk_factors.append("🚫 타임프레임 충돌 - 높은 불확실성")
+                risk_level = "high"
+            elif conditions.get("timeframe_partial_aligned", False):
+                risk_factors.append("🟡 타임프레임 부분 정렬 - 중간 위험도")
+                if risk_level == "low":
+                    risk_level = "medium"
 
         # F-Score 리스크
         if f_score < 7:
-            risk_level = "high"
             risk_factors.append(f"낮은 F-Score ({f_score}/9) - 재무 건전성 부족")
-
-        # 기술적 리스크
-        if conditions["death_cross"]:
-            risk_level = "high"
-            risk_factors.append("Death Cross 발생 - 장기 하락 추세 전환")
-
-        if conditions["rsi_overbought"]:
             if risk_level == "low":
                 risk_level = "medium"
-            risk_factors.append("RSI 과매수 - 단기 조정 가능성")
+            if f_score < 5:
+                risk_level = "high"
 
-        if conditions["high_volatility"]:
-            if risk_level == "low":
-                risk_level = "medium"
+        # RSI 리스크
+        rsi = latest_row.get("rsi", 50)
+        if not pd.isna(rsi):
+            if rsi > 70:
+                risk_factors.append(f"RSI 과매수 ({rsi:.1f}) - 조정 위험")
+                if risk_level != "high":
+                    risk_level = "medium"
+            elif rsi < 30:
+                risk_factors.append(f"RSI 과매도 ({rsi:.1f}) - 추가 하락 가능")
+
+        # 변동성 리스크
+        if conditions.get("high_volatility", False):
             risk_factors.append("높은 변동성 - 급격한 가격 변동 위험")
 
         if not risk_factors:
-            risk_factors.append("리스크 요인 없음 - 안정적 투자 환경")
+            risk_factors.append("✅ 리스크 요인 최소화")
 
         return {
             "risk_level": risk_level,

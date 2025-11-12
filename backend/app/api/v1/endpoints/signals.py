@@ -14,6 +14,7 @@ from app.services.fmp_client import fmp_client
 from app.services.fundamental_analysis import fundamental_service
 from app.services.indicators import TechnicalIndicators
 from app.services.hybrid_signal import hybrid_signal_generator
+from app.services.multi_timeframe import multi_timeframe_analyzer
 import pandas as pd
 import math
 
@@ -124,13 +125,26 @@ async def get_trading_signal(
     # 4. 기술적 지표 계산
     df = TechnicalIndicators.calculate_all_indicators(price_data)
 
-    # 5. 하이브리드 시그널 생성
-    current_price = _safe_float(df.iloc[-1]["close"]) or 0.0
-    signal_data = hybrid_signal_generator.generate_signal(
-        f_score_data=f_score_data, technical_data=df, current_price=current_price
+    # 5. 다중 타임프레임 분석 수행
+    timeframe_analysis = await multi_timeframe_analyzer.analyze_multiple_timeframes(
+        symbol=symbol_upper, trading_style="swing_trading"
     )
 
-    # 6. 시그널 DB 저장
+    # 진입점 최적화 분석 추가
+    timeframe_analysis["entry_analysis"] = multi_timeframe_analyzer.get_optimal_entry_analysis(
+        timeframe_analysis
+    )
+
+    # 6. 하이브리드 시그널 생성 (타임프레임 분석 포함)
+    current_price = _safe_float(df.iloc[-1]["close"]) or 0.0
+    signal_data = hybrid_signal_generator.generate_signal(
+        f_score_data=f_score_data,
+        technical_data=df,
+        current_price=current_price,
+        timeframe_analysis=timeframe_analysis,
+    )
+
+    # 7. 시그널 DB 저장 (타임프레임 분석 포함)
     db_signal = TradingSignal(
         symbol_id=db_symbol.id,
         fundamental_score_id=db_f_score.id,
@@ -141,12 +155,13 @@ async def get_trading_signal(
         recommendations=signal_data["recommendations"],
         risk_level=signal_data["risk_assessment"]["risk_level"],
         risk_factors=signal_data["risk_assessment"]["risk_factors"],
+        timeframe_analysis=timeframe_analysis,  # 타임프레임 분석 결과 저장
     )
     db.add(db_signal)
     db.commit()
     db.refresh(db_signal)
 
-    # 7. 응답 데이터 구성
+    # 8. 응답 데이터 구성 (타임프레임 분석 포함)
     return {
         "symbol": {
             "symbol": db_symbol.symbol,
@@ -166,6 +181,7 @@ async def get_trading_signal(
             "details": db_f_score.score_details,
             "calculated_at": db_f_score.calculated_at.isoformat(),
         },
+        "timeframe_analysis": timeframe_analysis,  # 다중 타임프레임 분석 결과
         "conditions": signal_data["conditions"],
         "recommendations": signal_data["recommendations"],
         "risk_assessment": signal_data["risk_assessment"],
