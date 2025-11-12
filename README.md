@@ -2,15 +2,18 @@
 
 미국 주식 시장의 상태를 5가지 기술적 지표로 분석하여 최적의 투자 전략을 제시하는 웹 애플리케이션
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/7N2KpL?referralCode=dataofmen)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/dataofmen/market-state-analysis)
 
 ## 🚀 Quick Deploy
 
 Railway에서 원클릭으로 배포하세요:
 1. 위의 "Deploy on Railway" 버튼 클릭
 2. GitHub 계정으로 로그인
-3. 환경 변수 설정 (FMP_API_KEY, SECRET_KEY)
-4. 자동 배포 시작!
+3. PostgreSQL과 Redis 서비스 자동 생성
+4. 환경 변수 설정:
+   - `FMP_API_KEY`: Financial Modeling Prep API 키
+   - `SECRET_KEY`: JWT 암호화 키 (32자 이상)
+5. 자동 배포 시작!
 
 ## 📋 개요
 
