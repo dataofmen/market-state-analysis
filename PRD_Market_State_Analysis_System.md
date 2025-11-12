@@ -1,9 +1,11 @@
 # PRD: 시장 상태 판단 시스템
 ## Market State Analysis System for Trading
 
-**문서 버전**: 1.0
+**문서 버전**: 2.0
 **작성일**: 2025-11-12
+**최종 수정**: 2025-11-12
 **프로젝트 코드**: 7412-PRD
+**배포 플랫폼**: Railway.app
 
 ---
 
@@ -20,7 +22,12 @@
 ### 목표 사용자
 - 미국 주식 시장 투자자
 - 시스템 트레이딩 실천자
-- 스프레드시트 기반 매매일지 사용자
+- 데이터 기반 투자 의사결정을 원하는 개인 투자자
+
+### 배포 환경
+- **플랫폼**: Railway.app
+- **형태**: 전용 웹 애플리케이션
+- **접근**: 웹 브라우저 (Desktop/Mobile 반응형)
 
 ---
 
@@ -264,16 +271,17 @@ S&P 500 옵션 기반 향후 30일 기대 변동성 지수 ("공포 지수")
   - [ ] 라벨 변경 시 알림 또는 강조 표시
   - [ ] 과거 데이터의 시장 상태 재분류 가능
 
-### FR-3: 스프레드시트 통합
+### FR-3: 웹 대시보드 UI
 - **ID**: FR-3
 - **Priority**: P0 (Critical)
 - **Description**:
-  - Google Sheets 또는 Excel에서 직접 사용 가능한 형태로 구현
-  - 기존 매매일지와 통합
+  - 반응형 웹 인터페이스로 데스크톱/모바일 지원
+  - 실시간 데이터 업데이트 및 시각화
 - **Acceptance Criteria**:
-  - [ ] 각 거래 행에 시장 상태 컬럼 자동 추가
-  - [ ] 지표 값 자동 업데이트 (일간 또는 실시간)
-  - [ ] 사용자 정의 수식 및 매크로 지원
+  - [ ] 시장 상태 대시보드 (종목별 현황)
+  - [ ] 지표 차트 및 시각화
+  - [ ] 거래 기록 입력 및 관리 UI
+  - [ ] 반응형 디자인 (모바일 최적화)
 
 ### FR-4: 진입/청산 규칙 제안
 - **ID**: FR-4
@@ -318,6 +326,507 @@ S&P 500 옵션 기반 향후 30일 기대 변동성 지수 ("공포 지수")
   - [ ] 지표별 차트 자동 생성
   - [ ] 시장 상태 구간별 색상 구분
   - [ ] 대시보드 형태의 종합 뷰 제공
+
+---
+
+## 🎨 Web Application UI/UX Specification
+
+### Page Structure
+
+#### 1. Landing Page (비로그인)
+- **Hero Section**: 서비스 소개 및 주요 기능
+- **Features Section**: 핵심 기능 3가지 (지표 계산, 시장 상태 판단, 성과 분석)
+- **Pricing Section**: 무료/유료 플랜 (향후 확장)
+- **CTA**: 회원가입/로그인 버튼
+
+#### 2. Authentication Pages
+- **로그인**: 이메일/비밀번호 또는 OAuth (구글/애플)
+- **회원가입**: 이메일, 비밀번호, 약관 동의
+- **비밀번호 재설정**: 이메일 기반 복구
+
+#### 3. Main Dashboard (`/dashboard`)
+**Layout**:
+- Top Navigation Bar (로고, 워치리스트, 거래기록, 설정, 로그아웃)
+- Sidebar (종목 검색, 워치리스트)
+- Main Content Area (대시보드 위젯)
+
+**Widgets**:
+1. **시장 개요** (Market Overview)
+   - VIX 현재 값 및 리스크 수준
+   - S&P 500, NASDAQ 지수 현황
+   - 전체 시장 상태 요약
+
+2. **워치리스트** (Watchlist)
+   - 종목 목록 (티커, 현재가, 변동률)
+   - 시장 상태 라벨 (색상 코딩)
+   - 빠른 차트 미리보기
+
+3. **오늘의 추천** (Today's Recommendations)
+   - 진입 추천 종목 (트렌드 + 변동성 조건 충족)
+   - 청산 고려 종목 (리스크 수준 증가)
+
+4. **최근 거래** (Recent Trades)
+   - 최근 5개 거래 기록
+   - 수익/손실, R-배수 표시
+
+#### 4. Symbol Detail Page (`/symbol/:ticker`)
+**Sections**:
+1. **Header**
+   - 종목명, 티커, 현재가, 변동률
+   - 시장 상태 배지 (Uptrend High Volatility 등)
+   - 워치리스트 추가/제거 버튼
+
+2. **Price Chart** (Interactive)
+   - Candlestick 차트 (TradingView 스타일)
+   - Bollinger Bands 오버레이
+   - 시장 상태 구간 색상 표시
+   - 기간 선택 (1W, 1M, 3M, 6M, 1Y, All)
+
+3. **Technical Indicators**
+   - ATR: 현재 값, 20일 평균 대비 비율, 추세 그래프
+   - Bollinger Bands: 밴드 폭, 20일 평균 대비 비율
+   - ADX: 현재 값, +DI, -DI, 추세 강도
+   - 표준편차: 일간/연환산 변동성
+
+4. **Market State Analysis**
+   - 트렌드 유형: Uptrend/Downtrend/Range (아이콘)
+   - 변동성 수준: Low/Normal/High/Extreme (색상)
+   - 리스크 상태: Stable/Caution/Alert/Danger (색상)
+   - 권장 전략 및 포지션 사이징 비율
+
+5. **Action Panel**
+   - 진입 추천 가격 (ATR 기반)
+   - 손절 추천 가격
+   - 익절 추천 가격 (R-배수)
+   - "거래 기록하기" 버튼
+
+#### 5. Trade Journal Page (`/trades`)
+**Features**:
+1. **거래 목록 테이블**
+   - 컬럼: 날짜, 종목, 진입가, 청산가, 수익/손실, R-배수, 시장상태
+   - 필터: 종목, 날짜 범위, 수익/손실, 시장 상태
+   - 정렬: 날짜, 수익률, R-배수
+
+2. **거래 입력 폼** (Modal)
+   - 종목 선택
+   - 진입 날짜/가격
+   - 청산 날짜/가격
+   - 포지션 크기
+   - 메모 (선택사항)
+   - 자동 계산: 수익/손실, R-배수, 진입 시점 시장 상태
+
+3. **성과 분석 섹션**
+   - 전체 수익률, 승률
+   - 시장 상태별 수익률 차트 (막대 그래프)
+   - 월별 수익률 히트맵
+
+#### 6. Analysis Page (`/analysis`)
+**Sections**:
+1. **시장 상태별 성과**
+   - 테이블: 트렌드 유형 × 변동성 수준 → 거래 수, 승률, 평균 R
+   - 인사이트: "Uptrend + Normal Volatility에서 가장 높은 수익률"
+
+2. **시계열 분석**
+   - 누적 수익률 차트
+   - 드로다운 차트
+   - 월별 수익률 바 차트
+
+3. **통계 요약**
+   - 최대 낙폭 (MDD)
+   - 샤프 비율
+   - 평균 보유 기간
+   - 최대 연속 승/패
+
+#### 7. Settings Page (`/settings`)
+**Tabs**:
+1. **계정 설정**
+   - 이메일, 비밀번호 변경
+   - 계정 삭제
+
+2. **지표 설정**
+   - ATR 기간 (기본 14일)
+   - Bollinger Bands 기간/표준편차 (기본 20일, 2σ)
+   - ADX 기간 (기본 14일)
+   - 임계값 커스터마이징 (ADX 20/25 등)
+
+3. **알림 설정**
+   - 이메일 알림 활성화/비활성화
+   - 알림 조건 설정 (VIX > 30, ADX 전환 등)
+
+4. **데이터 관리**
+   - 거래 기록 CSV 내보내기
+   - 데이터 동기화 상태
+
+---
+
+## 🌐 API Endpoints Specification
+
+### Authentication Endpoints
+
+#### POST `/api/v1/auth/register`
+**Request**:
+```json
+{
+  "email": "user@example.com",
+  "password": "securepassword123"
+}
+```
+**Response**:
+```json
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "created_at": "2025-11-12T10:00:00Z",
+  "access_token": "jwt_token"
+}
+```
+
+#### POST `/api/v1/auth/login`
+**Request**:
+```json
+{
+  "email": "user@example.com",
+  "password": "securepassword123"
+}
+```
+**Response**:
+```json
+{
+  "access_token": "jwt_token",
+  "token_type": "bearer",
+  "expires_in": 3600
+}
+```
+
+#### POST `/api/v1/auth/refresh`
+**Headers**: `Authorization: Bearer {token}`
+**Response**:
+```json
+{
+  "access_token": "new_jwt_token"
+}
+```
+
+### Market Data Endpoints
+
+#### GET `/api/v1/market/overview`
+**Headers**: `Authorization: Bearer {token}`
+**Response**:
+```json
+{
+  "vix": {
+    "current": 18.5,
+    "change": -1.2,
+    "risk_level": "caution"
+  },
+  "sp500": {
+    "current": 4500.0,
+    "change_percent": 0.8
+  },
+  "market_sentiment": "positive"
+}
+```
+
+#### GET `/api/v1/symbols/search?q={query}`
+**Query Params**: `q` (검색어, 최소 1자)
+**Response**:
+```json
+{
+  "results": [
+    {
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "sector": "Technology",
+      "market": "NASDAQ"
+    }
+  ]
+}
+```
+
+#### GET `/api/v1/symbols/{symbol}`
+**Path Params**: `symbol` (티커, 예: AAPL)
+**Response**:
+```json
+{
+  "symbol": "AAPL",
+  "name": "Apple Inc.",
+  "current_price": 175.50,
+  "change_percent": 1.2,
+  "market_state": {
+    "trend_type": "uptrend",
+    "volatility_level": "normal",
+    "risk_level": "stable",
+    "recommended_strategy": "trend_following",
+    "position_sizing_ratio": 1.0
+  },
+  "indicators": {
+    "atr": 3.5,
+    "atr_ratio": 1.1,
+    "bb_width": 8.2,
+    "bb_width_ratio": 0.95,
+    "adx": 28.5,
+    "plus_di": 25.0,
+    "minus_di": 18.0,
+    "std_dev": 0.022
+  },
+  "recommendations": {
+    "entry_price": 174.0,
+    "stop_loss": 170.0,
+    "take_profit": 182.0
+  }
+}
+```
+
+#### GET `/api/v1/symbols/{symbol}/history?period={period}`
+**Path Params**: `symbol` (티커)
+**Query Params**: `period` (1w, 1m, 3m, 6m, 1y, all)
+**Response**:
+```json
+{
+  "symbol": "AAPL",
+  "period": "3m",
+  "data": [
+    {
+      "date": "2025-08-12",
+      "open": 170.0,
+      "high": 175.0,
+      "low": 169.0,
+      "close": 174.0,
+      "volume": 50000000,
+      "indicators": {
+        "atr": 3.5,
+        "bb_upper": 180.0,
+        "bb_middle": 175.0,
+        "bb_lower": 170.0,
+        "adx": 28.5
+      },
+      "market_state": "uptrend_normal"
+    }
+  ]
+}
+```
+
+### Watchlist Endpoints
+
+#### GET `/api/v1/watchlist`
+**Headers**: `Authorization: Bearer {token}`
+**Response**:
+```json
+{
+  "watchlist": [
+    {
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "current_price": 175.50,
+      "change_percent": 1.2,
+      "market_state": "uptrend_normal",
+      "added_at": "2025-11-10T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### POST `/api/v1/watchlist`
+**Headers**: `Authorization: Bearer {token}`
+**Request**:
+```json
+{
+  "symbol": "AAPL"
+}
+```
+**Response**:
+```json
+{
+  "message": "Added to watchlist",
+  "watchlist_id": "uuid"
+}
+```
+
+#### DELETE `/api/v1/watchlist/{symbol}`
+**Headers**: `Authorization: Bearer {token}`
+**Response**:
+```json
+{
+  "message": "Removed from watchlist"
+}
+```
+
+### Trade Journal Endpoints
+
+#### GET `/api/v1/trades?limit={limit}&offset={offset}&filter={filter}`
+**Headers**: `Authorization: Bearer {token}`
+**Query Params**:
+- `limit` (기본 50)
+- `offset` (페이지네이션)
+- `filter` (symbol, date_from, date_to, market_state)
+
+**Response**:
+```json
+{
+  "trades": [
+    {
+      "id": "uuid",
+      "symbol": "AAPL",
+      "entry_date": "2025-11-01",
+      "exit_date": "2025-11-05",
+      "entry_price": 170.0,
+      "exit_price": 180.0,
+      "position_size": 10,
+      "pnl": 100.0,
+      "r_multiple": 2.5,
+      "market_state": "uptrend_normal",
+      "notes": "Good trend following setup"
+    }
+  ],
+  "total": 150,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+#### POST `/api/v1/trades`
+**Headers**: `Authorization: Bearer {token}`
+**Request**:
+```json
+{
+  "symbol": "AAPL",
+  "entry_date": "2025-11-01",
+  "exit_date": "2025-11-05",
+  "entry_price": 170.0,
+  "exit_price": 180.0,
+  "position_size": 10,
+  "notes": "Good trend following setup"
+}
+```
+**Response**:
+```json
+{
+  "id": "uuid",
+  "pnl": 100.0,
+  "r_multiple": 2.5,
+  "market_state": "uptrend_normal"
+}
+```
+
+#### PUT `/api/v1/trades/{trade_id}`
+**Headers**: `Authorization: Bearer {token}`
+**Request**: 동일 (부분 업데이트 가능)
+
+#### DELETE `/api/v1/trades/{trade_id}`
+**Headers**: `Authorization: Bearer {token}`
+**Response**:
+```json
+{
+  "message": "Trade deleted"
+}
+```
+
+### Analysis Endpoints
+
+#### GET `/api/v1/analysis/performance`
+**Headers**: `Authorization: Bearer {token}`
+**Query Params**: `date_from`, `date_to` (선택사항)
+**Response**:
+```json
+{
+  "overall": {
+    "total_trades": 150,
+    "win_rate": 0.65,
+    "total_pnl": 15000.0,
+    "avg_r_multiple": 1.8,
+    "max_drawdown": -2500.0,
+    "sharpe_ratio": 1.5
+  },
+  "by_market_state": [
+    {
+      "trend_type": "uptrend",
+      "volatility_level": "normal",
+      "total_trades": 50,
+      "win_rate": 0.75,
+      "avg_pnl": 150.0,
+      "avg_r_multiple": 2.2
+    }
+  ],
+  "monthly": [
+    {
+      "month": "2025-11",
+      "pnl": 2500.0,
+      "trades": 15
+    }
+  ]
+}
+```
+
+#### GET `/api/v1/analysis/market-state-breakdown`
+**Headers**: `Authorization: Bearer {token}`
+**Response**:
+```json
+{
+  "matrix": [
+    {
+      "trend_type": "uptrend",
+      "volatility_level": "normal",
+      "trade_count": 50,
+      "win_rate": 0.75,
+      "avg_r": 2.2,
+      "insight": "Best performance"
+    }
+  ]
+}
+```
+
+### Data Update Endpoints
+
+#### POST `/api/v1/data/update/{symbol}`
+**Headers**: `Authorization: Bearer {token}`
+**Path Params**: `symbol` (티커, 또는 `all`로 전체 업데이트)
+**Response**:
+```json
+{
+  "message": "Data update queued",
+  "task_id": "uuid",
+  "estimated_time": 30
+}
+```
+
+#### GET `/api/v1/data/status/{task_id}`
+**Headers**: `Authorization: Bearer {token}`
+**Response**:
+```json
+{
+  "task_id": "uuid",
+  "status": "completed",
+  "progress": 100,
+  "message": "Data updated successfully"
+}
+```
+
+### Settings Endpoints
+
+#### GET `/api/v1/settings`
+**Headers**: `Authorization: Bearer {token}`
+**Response**:
+```json
+{
+  "indicators": {
+    "atr_period": 14,
+    "bb_period": 20,
+    "bb_std_dev": 2.0,
+    "adx_period": 14,
+    "adx_threshold_weak": 20,
+    "adx_threshold_strong": 25
+  },
+  "notifications": {
+    "email_enabled": true,
+    "vix_threshold": 30,
+    "adx_transition_alert": true
+  }
+}
+```
+
+#### PUT `/api/v1/settings`
+**Headers**: `Authorization: Bearer {token}`
+**Request**: 동일 구조 (부분 업데이트 가능)
 
 ---
 
@@ -408,24 +917,350 @@ S&P 500 옵션 기반 향후 30일 기대 변동성 지수 ("공포 지수")
 
 ---
 
-## 🛠️ Technical Stack Recommendations
+## 🛠️ Technical Stack (Railway.app 배포)
 
-### Option 1: Google Sheets 기반
-- **장점**: 접근성, 협업, 클라우드 동기화
-- **도구**: Google Apps Script, Google Finance API
-- **적합 대상**: 비프로그래머, 빠른 프로토타입
+### Architecture Overview
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Frontend      │────▶│    Backend      │────▶│   Database      │
+│   (React +      │     │   (FastAPI +    │     │  (PostgreSQL)   │
+│   TypeScript)   │     │    Python)      │     │                 │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+         │                       │                        │
+         │                       ▼                        │
+         │              ┌─────────────────┐              │
+         │              │  External APIs  │              │
+         └──────────────│ Yahoo Finance   │──────────────┘
+                        │ Alpha Vantage   │
+                        └─────────────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │  Railway.app    │
+                        │   Deployment    │
+                        └─────────────────┘
+```
 
-### Option 2: Excel + Python
-- **장점**: 고급 분석, 백테스팅, 확장성
-- **도구**: Python (pandas, numpy, ta-lib), xlwings
-- **적합 대상**: 프로그래밍 가능, 대량 데이터 분석
+### Frontend Stack
 
-### Option 3: 전용 웹 애플리케이션
-- **장점**: 최고의 UX, 실시간 처리, 모바일 지원
-- **도구**: React/Vue (프론트), Python/Node (백엔드), PostgreSQL
-- **적합 대상**: 장기 프로젝트, 다수 사용자
+#### Core Framework
+- **React 18.3+**: UI 라이브러리
+- **TypeScript 5.0+**: 타입 안정성
+- **Vite**: 빌드 도구 (빠른 개발 서버)
 
-**권장**: Phase 1-2는 Google Sheets, Phase 3-4는 Python 통합
+#### UI/UX Libraries
+- **Tailwind CSS 3.4+**: 유틸리티 기반 스타일링
+- **shadcn/ui**: 재사용 가능한 컴포넌트 시스템
+- **Recharts**: 차트 및 데이터 시각화
+- **React Query (TanStack Query)**: 서버 상태 관리
+- **Zustand**: 클라이언트 상태 관리
+
+#### Additional Tools
+- **React Router v6**: 라우팅
+- **Axios**: HTTP 클라이언트
+- **date-fns**: 날짜 처리
+- **Zod**: 런타임 타입 검증
+
+### Backend Stack
+
+#### Core Framework
+- **FastAPI 0.109+**: 고성능 비동기 API 프레임워크
+- **Python 3.11+**: 프로그래밍 언어
+- **Pydantic V2**: 데이터 검증 및 설정 관리
+
+#### Data Processing
+- **pandas 2.2+**: 시계열 데이터 처리
+- **numpy 1.26+**: 수치 계산
+- **ta-lib**: 기술적 지표 계산 (ATR, ADX, Bollinger Bands)
+- **yfinance**: Yahoo Finance 데이터 수집
+
+#### Database & ORM
+- **PostgreSQL 16+**: 메인 데이터베이스
+- **SQLAlchemy 2.0+**: ORM 및 데이터베이스 추상화
+- **Alembic**: 데이터베이스 마이그레이션
+
+#### Task Queue & Scheduling
+- **Celery**: 비동기 작업 처리
+- **Redis**: 메시지 브로커 및 캐싱
+- **APScheduler**: 일간 데이터 업데이트 스케줄링
+
+#### API Integration
+- **httpx**: 비동기 HTTP 클라이언트
+- **aiohttp**: 비동기 API 호출
+- **python-dotenv**: 환경 변수 관리
+
+### Database Schema
+
+#### Tables Structure
+```sql
+-- 사용자 관리
+users (
+  id: UUID PRIMARY KEY,
+  email: VARCHAR UNIQUE,
+  hashed_password: VARCHAR,
+  created_at: TIMESTAMP,
+  is_active: BOOLEAN
+)
+
+-- 종목 관리
+symbols (
+  id: SERIAL PRIMARY KEY,
+  symbol: VARCHAR UNIQUE,
+  name: VARCHAR,
+  sector: VARCHAR,
+  market: VARCHAR
+)
+
+-- 일간 가격 데이터
+daily_prices (
+  id: SERIAL PRIMARY KEY,
+  symbol_id: INTEGER REFERENCES symbols(id),
+  date: DATE,
+  open: DECIMAL,
+  high: DECIMAL,
+  low: DECIMAL,
+  close: DECIMAL,
+  volume: BIGINT,
+  UNIQUE(symbol_id, date)
+)
+
+-- 기술적 지표
+technical_indicators (
+  id: SERIAL PRIMARY KEY,
+  symbol_id: INTEGER REFERENCES symbols(id),
+  date: DATE,
+  atr: DECIMAL,
+  atr_ratio: DECIMAL,
+  bb_upper: DECIMAL,
+  bb_middle: DECIMAL,
+  bb_lower: DECIMAL,
+  bb_width: DECIMAL,
+  bb_width_ratio: DECIMAL,
+  adx: DECIMAL,
+  plus_di: DECIMAL,
+  minus_di: DECIMAL,
+  vix: DECIMAL,
+  std_dev: DECIMAL,
+  UNIQUE(symbol_id, date)
+)
+
+-- 시장 상태
+market_states (
+  id: SERIAL PRIMARY KEY,
+  symbol_id: INTEGER REFERENCES symbols(id),
+  date: DATE,
+  trend_type: VARCHAR, -- 'uptrend', 'downtrend', 'range'
+  volatility_level: VARCHAR, -- 'low', 'normal', 'high', 'extreme'
+  risk_level: VARCHAR, -- 'stable', 'caution', 'alert', 'danger'
+  recommended_strategy: VARCHAR,
+  position_sizing_ratio: DECIMAL,
+  UNIQUE(symbol_id, date)
+)
+
+-- 사용자 거래 기록
+trades (
+  id: SERIAL PRIMARY KEY,
+  user_id: UUID REFERENCES users(id),
+  symbol_id: INTEGER REFERENCES symbols(id),
+  entry_date: DATE,
+  exit_date: DATE,
+  entry_price: DECIMAL,
+  exit_price: DECIMAL,
+  position_size: DECIMAL,
+  pnl: DECIMAL,
+  market_state_id: INTEGER REFERENCES market_states(id),
+  notes: TEXT
+)
+
+-- 사용자 워치리스트
+watchlists (
+  id: SERIAL PRIMARY KEY,
+  user_id: UUID REFERENCES users(id),
+  symbol_id: INTEGER REFERENCES symbols(id),
+  created_at: TIMESTAMP,
+  UNIQUE(user_id, symbol_id)
+)
+```
+
+### Infrastructure (Railway.app)
+
+#### Deployment Configuration
+```toml
+# railway.toml
+[build]
+  builder = "NIXPACKS"
+  buildCommand = "npm run build && pip install -r requirements.txt"
+
+[deploy]
+  startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+  healthcheckPath = "/health"
+  healthcheckTimeout = 30
+  restartPolicyType = "ON_FAILURE"
+  restartPolicyMaxRetries = 3
+
+[env]
+  NODE_ENV = "production"
+  PYTHON_VERSION = "3.11"
+```
+
+#### Services on Railway
+1. **Web Service** (FastAPI Backend)
+   - Environment: Python 3.11
+   - Port: 8000
+   - Health Check: `/health`
+
+2. **PostgreSQL Database**
+   - Version: 16
+   - Managed by Railway
+   - Auto-backups enabled
+
+3. **Redis**
+   - Used for Celery broker and caching
+   - Managed by Railway
+
+#### Environment Variables
+```bash
+# Database
+DATABASE_URL=postgresql://...
+
+# Redis
+REDIS_URL=redis://...
+
+# API Keys
+YAHOO_FINANCE_API_KEY=...
+ALPHA_VANTAGE_API_KEY=...
+
+# JWT
+SECRET_KEY=...
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# CORS
+ALLOWED_ORIGINS=https://yourdomain.com
+```
+
+### CI/CD Pipeline
+
+#### GitHub Actions Workflow
+```yaml
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Tests
+        run: |
+          pip install -r requirements.txt
+          pytest
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          npm install -g @railway/cli
+          railway up
+```
+
+### Security & Authentication
+
+#### Authentication Strategy
+- **JWT (JSON Web Tokens)**: 토큰 기반 인증
+- **bcrypt**: 비밀번호 해싱
+- **OAuth2**: 향후 구글/애플 로그인 지원
+
+#### Security Measures
+- **HTTPS Only**: Railway의 자동 SSL/TLS
+- **CORS Configuration**: 허용된 도메인만 접근
+- **Rate Limiting**: API 호출 제한 (10 req/min per user)
+- **SQL Injection Prevention**: SQLAlchemy ORM 사용
+- **Input Validation**: Pydantic 모델 검증
+
+### Performance Optimization
+
+#### Caching Strategy
+- **Redis**: API 응답 캐싱 (5분 TTL)
+- **Database Indexing**: symbol_id, date, user_id
+- **Query Optimization**: SELECT 최적화, N+1 방지
+
+#### Monitoring & Logging
+- **Railway Logs**: 실시간 로그 모니터링
+- **Sentry**: 에러 트래킹 (선택사항)
+- **Custom Metrics**: API 응답 시간, 데이터 업데이트 빈도
+
+### Cost Estimation (Railway.app)
+
+#### Free Tier
+- $5 credit/month
+- 적합: 개발 및 테스트
+
+#### Hobby Plan ($5/month)
+- Unlimited usage
+- Custom domain
+- Priority support
+- **권장**: 개인 사용
+
+#### Pro Plan ($20/month)
+- Team collaboration
+- Advanced analytics
+- **권장**: 다수 사용자 서비스
+
+### Development Environment
+
+#### Local Setup
+```bash
+# Backend
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+
+# Frontend
+cd frontend
+npm install
+npm run dev
+```
+
+#### Docker Compose (선택사항)
+```yaml
+version: '3.8'
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: market_analysis
+      POSTGRES_PASSWORD: password
+
+  redis:
+    image: redis:7-alpine
+```
 
 ---
 
@@ -500,35 +1335,49 @@ S&P 500 옵션 기반 향후 30일 기대 변동성 지수 ("공포 지수")
 
 ## ✅ Acceptance Criteria
 
-### MVP 완료 기준
+### MVP 완료 기준 (Railway.app 배포)
 1. [ ] 5가지 핵심 지표 (ATR, Bollinger Bands, ADX, VIX, 표준편차) 계산 정확도 99% 이상
 2. [ ] 시장 상태 자동 분류 (트렌드 유형, 변동성 수준, 리스크 상태)
-3. [ ] Google Sheets 템플릿 완성 (최소 1년치 데이터 지원)
-4. [ ] 사용자 가이드 제공 (설치, 설정, 사용법)
+3. [ ] 반응형 웹 대시보드 (Desktop/Mobile)
+4. [ ] 사용자 인증 시스템 (JWT 기반)
 5. [ ] 최소 10개 종목 동시 추적 가능
+6. [ ] Railway.app 성공적 배포 및 HTTPS 접근
 
 ### 전체 시스템 완료 기준
 1. [ ] 과거 거래 성과 분석 기능 (시장 상태별 수익률)
-2. [ ] 실시간 알림 시스템
-3. [ ] 자동 데이터 업데이트 (API 연동)
-4. [ ] 대시보드 시각화
-5. [ ] 3개월 실전 검증 완료 (거래 성과 개선 확인)
+2. [ ] 실시간 알림 시스템 (이메일)
+3. [ ] 자동 데이터 업데이트 (Celery + Redis 스케줄링)
+4. [ ] 인터랙티브 차트 대시보드 (Recharts)
+5. [ ] 거래 기록 CSV 내보내기
+6. [ ] 3개월 실전 검증 완료 (거래 성과 개선 확인)
+7. [ ] Railway.app Hobby Plan 안정 운영 (99% 업타임)
 
 ---
 
 ## 📝 Next Steps
 
-### 즉시 실행 항목
-1. [ ] 데이터 소스 선정 및 API 키 발급 (Yahoo Finance or Alpha Vantage)
-2. [ ] Google Sheets 템플릿 초안 생성
-3. [ ] ATR 및 표준편차 수식 구현 및 테스트
-4. [ ] 과거 1년치 S&P 500 데이터 수집
+### 즉시 실행 항목 (Railway.app 웹앱 개발)
+1. [ ] Railway.app 계정 생성 및 프로젝트 초기화
+2. [ ] GitHub 저장소 생성 (프론트엔드/백엔드 monorepo 또는 분리)
+3. [ ] 데이터 소스 API 키 발급
+   - [ ] Yahoo Finance API (yfinance 라이브러리)
+   - [ ] Alpha Vantage API (백업)
+4. [ ] 로컬 개발 환경 구축
+   - [ ] React + Vite + TypeScript 프론트엔드 초기화
+   - [ ] FastAPI + Python 백엔드 초기화
+   - [ ] PostgreSQL 로컬 Docker 컨테이너
+   - [ ] Redis 로컬 Docker 컨테이너
+5. [ ] Railway.app에 PostgreSQL + Redis 서비스 생성
+6. [ ] 데이터베이스 스키마 마이그레이션 (Alembic)
+7. [ ] 기본 인증 시스템 구현 (회원가입/로그인)
 
-### 의사결정 필요 항목
-1. [ ] 구현 플랫폼 최종 선택 (Google Sheets vs Python vs 웹앱)
-2. [ ] 임계값 초기 설정 (ADX 20/25, ATR 배수 등)
-3. [ ] 백테스트 기간 및 검증 종목 선정
-4. [ ] 알림 방식 선택 (이메일, Slack, 모바일 푸시)
+### 의사결정 완료 항목 ✅
+1. [✅] 구현 플랫폼: Railway.app 전용 웹 애플리케이션
+2. [✅] 프론트엔드: React 18 + TypeScript + Tailwind CSS + shadcn/ui
+3. [✅] 백엔드: FastAPI + Python 3.11 + PostgreSQL + Redis
+4. [ ] 임계값 초기 설정 (ADX 20/25, ATR 배수 등) - Phase 1에서 설정
+5. [ ] 백테스트 기간 및 검증 종목 선정 - 최소 1년, S&P 500 주요 종목
+6. [ ] 알림 방식: 이메일 (SendGrid 또는 AWS SES)
 
 ---
 
@@ -565,3 +1414,10 @@ S&P 500 옵션 기반 향후 30일 기대 변동성 지수 ("공포 지수")
 
 **Version History**:
 - v1.0 (2025-11-12): 초안 작성
+- v2.0 (2025-11-12): Railway.app 배포를 위한 전용 웹앱 아키텍처로 전환
+  - React + TypeScript + Tailwind CSS 프론트엔드
+  - FastAPI + Python 백엔드
+  - PostgreSQL 데이터베이스
+  - 완전한 UI/UX 명세 추가
+  - RESTful API 엔드포인트 전체 정의
+  - Railway.app CI/CD 파이프라인 설계
