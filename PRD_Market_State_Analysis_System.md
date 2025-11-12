@@ -775,6 +775,199 @@ S&P 500 옵션 기반 향후 30일 기대 변동성 지수 ("공포 지수")
 }
 ```
 
+### FMP API Integration Details
+
+#### Overview
+Financial Modeling Prep (FMP) API를 주 데이터 소스로 사용합니다.
+- **Base URL**: `https://financialmodelingprep.com/api/v3/`
+- **API Key**: `h1HkZ5hSRFYN6ikVByBcLdcwHBEDajh4`
+- **Rate Limit**: 250 requests/day (Free tier), 750 requests/day (Starter tier)
+- **Documentation**: https://site.financialmodelingprep.com/developer/docs/
+
+#### Required FMP Endpoints
+
+##### 1. Historical Price Data
+```
+GET /historical-price-full/{symbol}?from={start_date}&to={end_date}&apikey={key}
+```
+**용도**: 일간 OHLCV 데이터 수집 (daily_prices 테이블)
+**예시**:
+```json
+{
+  "symbol": "AAPL",
+  "historical": [
+    {
+      "date": "2025-11-12",
+      "open": 170.0,
+      "high": 175.0,
+      "low": 169.0,
+      "close": 174.0,
+      "volume": 50000000
+    }
+  ]
+}
+```
+
+##### 2. Real-time Quote
+```
+GET /quote/{symbol}?apikey={key}
+```
+**용도**: 현재가 및 실시간 데이터 (Symbol Detail Page)
+**예시**:
+```json
+[
+  {
+    "symbol": "AAPL",
+    "name": "Apple Inc.",
+    "price": 175.50,
+    "changesPercentage": 1.2,
+    "change": 2.08,
+    "dayLow": 169.0,
+    "dayHigh": 176.0,
+    "volume": 48000000
+  }
+]
+```
+
+##### 3. Company Profile
+```
+GET /profile/{symbol}?apikey={key}
+```
+**용도**: 종목 기본 정보 (symbols 테이블)
+**예시**:
+```json
+[
+  {
+    "symbol": "AAPL",
+    "companyName": "Apple Inc.",
+    "sector": "Technology",
+    "industry": "Consumer Electronics",
+    "exchange": "NASDAQ"
+  }
+]
+```
+
+##### 4. Symbol Search
+```
+GET /search?query={query}&limit=10&apikey={key}
+```
+**용도**: 종목 검색 기능
+**예시**:
+```json
+[
+  {
+    "symbol": "AAPL",
+    "name": "Apple Inc.",
+    "currency": "USD",
+    "stockExchange": "NASDAQ"
+  }
+]
+```
+
+##### 5. Market Index (S&P 500, NASDAQ)
+```
+GET /quote/^GSPC,^IXIC?apikey={key}
+```
+**용도**: 시장 개요 위젯
+
+##### 6. VIX Data
+```
+GET /quote/^VIX?apikey={key}
+```
+**용도**: 변동성 지수 (Market Overview)
+
+#### FMP API Integration Strategy
+
+##### Data Collection Workflow
+```
+1. 초기 데이터 로딩 (최초 1회)
+   - Historical Price: 최근 2년치 데이터
+   - Company Profile: 기본 정보 저장
+
+2. 일간 데이터 업데이트 (매일 장 마감 후)
+   - Celery + APScheduler로 스케줄링
+   - 시간: 미국 동부시간 16:30 (장 마감 후 30분)
+   - 워치리스트 종목 + 추적 중인 종목 자동 업데이트
+
+3. 실시간 데이터 (사용자 요청 시)
+   - Symbol Detail 페이지 진입 시
+   - Redis 캐싱 (5분 TTL)
+   - Rate Limit 관리
+```
+
+##### Rate Limit Management
+```python
+# Redis를 이용한 Rate Limit 추적
+KEY: fmp:rate_limit:{date}
+VALUE: request_count
+TTL: 24시간
+
+if request_count < 250:  # Free tier limit
+    # API 호출 허용
+    increment_counter()
+else:
+    # 캐시된 데이터 반환 또는 대기
+    return_cached_data()
+```
+
+##### Fallback Strategy
+1. **Primary**: FMP API
+2. **Cache**: Redis (5분 TTL for quotes, 24시간 for historical)
+3. **Fallback**: 데이터베이스 최근 값 (API 장애 시)
+
+#### Technical Indicators Calculation
+**Note**: FMP API는 일부 기술적 지표만 제공하므로, **자체 계산 필요**
+
+**FMP 제공 지표**:
+- SMA, EMA (Simple/Exponential Moving Average)
+- RSI (Relative Strength Index)
+
+**자체 계산 필요 지표**:
+- ATR (Average True Range) → `pandas` + `ta-lib`
+- Bollinger Bands → `pandas` + `numpy`
+- ADX (Average Directional Index) → `ta-lib`
+- 표준편차 → `numpy`
+
+##### Calculation Workflow
+```python
+# 1. FMP에서 가격 데이터 수집
+historical_data = fetch_from_fmp(symbol, period)
+
+# 2. pandas DataFrame 변환
+df = pd.DataFrame(historical_data)
+
+# 3. 기술적 지표 계산
+df['atr'] = calculate_atr(df, period=14)
+df['bb_upper'], df['bb_middle'], df['bb_lower'] = calculate_bollinger_bands(df, period=20, std=2)
+df['adx'], df['plus_di'], df['minus_di'] = calculate_adx(df, period=14)
+df['std_dev'] = calculate_std_dev(df, period=20)
+
+# 4. 데이터베이스 저장
+save_to_db(technical_indicators, df)
+```
+
+#### Cost Estimation (FMP API)
+
+##### Free Tier (250 requests/day)
+- **비용**: $0/month
+- **제한**: 250 requests/day
+- **적합**: 개발 및 테스트 (1-5개 종목)
+
+##### Starter Tier ($29/month)
+- **비용**: $29/month
+- **제한**: 750 requests/day
+- **적합**: 개인 사용 (10-20개 종목)
+- **추가**: 5년 historical data, Real-time quotes
+
+##### Professional Tier ($99/month)
+- **비용**: $99/month
+- **제한**: Unlimited requests
+- **적합**: 다수 사용자 서비스
+
+**권장**: Phase 1-2는 Free Tier, Phase 3-4는 Starter Tier
+
+---
+
 ### Data Update Endpoints
 
 #### POST `/api/v1/data/update/{symbol}`
@@ -988,6 +1181,11 @@ S&P 500 옵션 기반 향후 30일 기대 변동성 지수 ("공포 지수")
 - **httpx**: 비동기 HTTP 클라이언트
 - **aiohttp**: 비동기 API 호출
 - **python-dotenv**: 환경 변수 관리
+- **Financial Modeling Prep (FMP) API**: 주식 데이터 제공자
+  - Real-time & Historical Prices
+  - Company Profiles
+  - Technical Indicators (일부)
+  - Market Data
 
 ### Database Schema
 
@@ -1127,8 +1325,8 @@ DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
 
 # API Keys
-YAHOO_FINANCE_API_KEY=...
-ALPHA_VANTAGE_API_KEY=...
+FMP_API_KEY=h1HkZ5hSRFYN6ikVByBcLdcwHBEDajh4
+# Note: FMP API를 주 데이터 소스로 사용
 
 # JWT
 SECRET_KEY=...
