@@ -2,7 +2,7 @@
 
 미국 주식 시장의 상태를 5가지 기술적 지표로 분석하여 최적의 투자 전략을 제시하는 웹 애플리케이션
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/market-state-analysis?referralCode=YOUR_CODE)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/7N2KpL?referralCode=dataofmen)
 
 ## 🚀 Quick Deploy
 
