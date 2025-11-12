@@ -149,8 +149,8 @@ class MultiTimeframeAnalyzer:
 
         # 타임프레임별 데이터 수집 (일수 기준)
         timeframe_configs = {
-            "short_term": {"days": 30, "label": "단기 (30일)"},  # 하위
-            "medium_term": {"days": 90, "label": "중기 (90일)"},  # 현재
+            "short_term": {"days": 20, "label": "단기 (20일)"},  # 하위
+            "medium_term": {"days": 100, "label": "중기 (100일)"},  # 현재
             "long_term": {"days": 200, "label": "장기 (200일)"},  # 상위
         }
 
