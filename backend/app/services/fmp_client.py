@@ -1,16 +1,20 @@
-import httpx
+import yfinance as yf
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
-from app.core.config import settings
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 
-class FMPClient:
-    """Financial Modeling Prep API Client"""
-
-    BASE_URL = "https://financialmodelingprep.com/api/v3"
+class YFinanceClient:
+    """Yahoo Finance API Client using yfinance library"""
 
     def __init__(self):
-        self.api_key = settings.FMP_API_KEY
+        self.executor = ThreadPoolExecutor(max_workers=5)
+
+    async def _run_in_executor(self, func, *args):
+        """비동기 실행을 위한 헬퍼 메서드"""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self.executor, func, *args)
 
     async def get_historical_prices(
         self, symbol: str, from_date: str = None, to_date: str = None
@@ -24,21 +28,43 @@ class FMPClient:
             to_date: 종료일 (YYYY-MM-DD)
 
         Returns:
-            가격 데이터 리스트
+            가격 데이터 리스트 (FMP 형식과 호환)
         """
-        url = f"{self.BASE_URL}/historical-price-full/{symbol}"
-        params = {"apikey": self.api_key}
+        def fetch_data():
+            ticker = yf.Ticker(symbol)
 
-        if from_date:
-            params["from"] = from_date
-        if to_date:
-            params["to"] = to_date
+            # 기간 설정
+            if from_date and to_date:
+                start = from_date
+                end = to_date
+            else:
+                # 기본값: 최근 90일
+                end = datetime.now().strftime("%Y-%m-%d")
+                start = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("historical", [])
+            # 데이터 가져오기
+            df = ticker.history(start=start, end=end)
+
+            if df.empty:
+                return []
+
+            # FMP 형식으로 변환
+            result = []
+            for index, row in df.iterrows():
+                result.append({
+                    "date": index.strftime("%Y-%m-%d"),
+                    "open": float(row["Open"]),
+                    "high": float(row["High"]),
+                    "low": float(row["Low"]),
+                    "close": float(row["Close"]),
+                    "volume": int(row["Volume"]),
+                })
+
+            # 날짜 역순 정렬 (최신이 먼저)
+            result.reverse()
+            return result
+
+        return await self._run_in_executor(fetch_data)
 
     async def get_quote(self, symbol: str) -> Dict[str, Any]:
         """
@@ -50,14 +76,28 @@ class FMPClient:
         Returns:
             실시간 시세 데이터
         """
-        url = f"{self.BASE_URL}/quote/{symbol}"
-        params = {"apikey": self.api_key}
+        def fetch_quote():
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            return data[0] if data else {}
+            return {
+                "symbol": symbol,
+                "name": info.get("longName", symbol),
+                "price": info.get("currentPrice", info.get("regularMarketPrice", 0)),
+                "changesPercentage": info.get("regularMarketChangePercent", 0),
+                "change": info.get("regularMarketChange", 0),
+                "dayLow": info.get("dayLow", 0),
+                "dayHigh": info.get("dayHigh", 0),
+                "yearHigh": info.get("fiftyTwoWeekHigh", 0),
+                "yearLow": info.get("fiftyTwoWeekLow", 0),
+                "marketCap": info.get("marketCap", 0),
+                "volume": info.get("volume", 0),
+                "avgVolume": info.get("averageVolume", 0),
+                "open": info.get("open", 0),
+                "previousClose": info.get("previousClose", 0),
+            }
+
+        return await self._run_in_executor(fetch_quote)
 
     async def get_company_profile(self, symbol: str) -> Dict[str, Any]:
         """
@@ -69,14 +109,29 @@ class FMPClient:
         Returns:
             기업 프로필 데이터
         """
-        url = f"{self.BASE_URL}/profile/{symbol}"
-        params = {"apikey": self.api_key}
+        def fetch_profile():
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            return data[0] if data else {}
+            return {
+                "symbol": symbol,
+                "companyName": info.get("longName", symbol),
+                "exchangeShortName": info.get("exchange", ""),
+                "industry": info.get("industry", ""),
+                "sector": info.get("sector", ""),
+                "country": info.get("country", ""),
+                "website": info.get("website", ""),
+                "description": info.get("longBusinessSummary", ""),
+                "ceo": info.get("companyOfficers", [{}])[0].get("name", "") if info.get("companyOfficers") else "",
+                "fullTimeEmployees": info.get("fullTimeEmployees", 0),
+                "address": info.get("address1", ""),
+                "city": info.get("city", ""),
+                "state": info.get("state", ""),
+                "zip": info.get("zip", ""),
+                "phone": info.get("phone", ""),
+            }
+
+        return await self._run_in_executor(fetch_profile)
 
     async def search_symbols(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -89,13 +144,28 @@ class FMPClient:
         Returns:
             검색 결과 리스트
         """
-        url = f"{self.BASE_URL}/search"
-        params = {"query": query, "limit": limit, "apikey": self.api_key}
+        def search():
+            # yfinance는 직접 검색 기능이 없으므로,
+            # 주요 종목 리스트에서 매칭하거나 단순히 심볼로 조회
+            # 여기서는 단순히 쿼리를 심볼로 가정하고 조회
+            try:
+                ticker = yf.Ticker(query.upper())
+                info = ticker.info
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            return response.json()
+                if info.get("regularMarketPrice") or info.get("currentPrice"):
+                    return [{
+                        "symbol": query.upper(),
+                        "name": info.get("longName", query.upper()),
+                        "stockExchange": info.get("exchange", ""),
+                        "currency": info.get("currency", "USD"),
+                        "exchangeShortName": info.get("exchange", ""),
+                    }]
+            except Exception:
+                pass
+
+            return []
+
+        return await self._run_in_executor(search)
 
     async def get_market_index(self, index: str = "^GSPC") -> Dict[str, Any]:
         """
@@ -107,14 +177,19 @@ class FMPClient:
         Returns:
             지수 데이터
         """
-        url = f"{self.BASE_URL}/quote/{index}"
-        params = {"apikey": self.api_key}
+        def fetch_index():
+            ticker = yf.Ticker(index)
+            info = ticker.info
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            return data[0] if data else {}
+            return {
+                "symbol": index,
+                "name": info.get("longName", index),
+                "price": info.get("regularMarketPrice", 0),
+                "changesPercentage": info.get("regularMarketChangePercent", 0),
+                "change": info.get("regularMarketChange", 0),
+            }
+
+        return await self._run_in_executor(fetch_index)
 
     async def get_vix(self) -> float:
         """
@@ -123,9 +198,13 @@ class FMPClient:
         Returns:
             VIX 값
         """
-        vix_data = await self.get_market_index("^VIX")
-        return vix_data.get("price", 0.0)
+        def fetch_vix():
+            ticker = yf.Ticker("^VIX")
+            info = ticker.info
+            return float(info.get("regularMarketPrice", 0))
+
+        return await self._run_in_executor(fetch_vix)
 
 
-# FMP Client 인스턴스
-fmp_client = FMPClient()
+# FMP Client를 YFinance Client로 교체 (하위 호환성 유지)
+fmp_client = YFinanceClient()
