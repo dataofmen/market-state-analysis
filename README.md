@@ -8,6 +8,20 @@
 
 ### 핵심 기능
 
+- **하이브리드 매매 시그널 (Piotroski F-Score + 기술적 분석)**
+  - Piotroski F-Score: 재무 건전성 평가 (9점 만점)
+  - 기술적 지표: RSI, ADX, SMA, Golden/Death Cross, 볼륨 분석
+  - 시그널 타입: STRONG_BUY, BUY, HOLD, WARNING, SELL, STRONG_SELL
+  - 시그널 강도: VERY_STRONG, STRONG, MODERATE, WEAK
+
+- **다중 타임프레임 분석 (Multi-Timeframe Analysis)** 🆕
+  - 3개 타임프레임 동시 분석: 단기(20일), 중기(100일), 장기(200일)
+  - 타임프레임 정렬 감지: ALIGNED (완전 정렬), PARTIAL_ALIGNED (부분 정렬), CONFLICTED (충돌)
+  - 상위 타임프레임 우선: 장기 > 중기 > 단기 추세 방향
+  - 거래 적합성 평가: 신뢰도 점수 (0-100%) 제공
+  - 진입점 최적화: 하위 타임프레임으로 더 나은 진입가 찾기
+  - 충돌 시 거래 회피: 타임프레임 충돌 시 WARNING 시그널 발생
+
 - **5가지 기술적 지표 분석**
   - ATR (Average True Range): 변동성 측정
   - Bollinger Bands: 추세/횡보 구분
@@ -24,6 +38,7 @@
   - 12가지 시장 상태별 최적화된 전략
   - 자동 포지션 크기 조절
   - 실시간 전략 추천
+  - 목표가/손절가 자동 계산
 
 ## 🏗️ 기술 스택
 
